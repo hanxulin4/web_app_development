@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+
+{% block title %}活動列表 - 活動報名系統{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2>所有活動</h2>
+    <a href="{{ url_for('event_routes.create_event') }}" class="btn btn-primary">建立新活動</a>
+</div>
+
+{% if events %}
+<div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-4">
+    {% for event in events %}
+    <div class="col">
+        <div class="card h-100 shadow-sm">
+            <div class="card-body">
+                <h5 class="card-title">{{ event.name }}</h5>
+                <h6 class="card-subtitle mb-2 text-muted">📅 {{ event.event_date }}</h6>
+                <p class="card-text text-truncate">{{ event.description if event.description else '暫無描述' }}</p>
+                <a href="{{ url_for('event_routes.event_detail', id=event.id) }}" class="btn btn-outline-primary btn-sm mt-2">查看詳情與報名</a>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% else %}
+<div class="alert alert-info text-center py-5">
+    <h4>目前尚無任何活動</h4>
+    <p>點擊上方按鈕建立第一個活動吧！</p>
+    <a href="{{ url_for('event_routes.create_event') }}" class="btn btn-primary mt-2">建立新活動</a>
+</div>
+{% endif %}
+{% endblock %}

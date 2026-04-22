@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+
+{% block title %}建立活動 - 活動報名系統{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-8">
+        <div class="card shadow-sm">
+            <div class="card-header bg-primary text-white">
+                <h4 class="mb-0">建立新活動</h4>
+            </div>
+            <div class="card-body">
+                <form action="{{ url_for('event_routes.create_event') }}" method="POST">
+                    <div class="mb-3">
+                        <label for="name" class="form-label">活動名稱 <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" id="name" name="name" required placeholder="例如：春季迎新烤肉">
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="event_date" class="form-label">活動日期 <span class="text-danger">*</span></label>
+                        <input type="date" class="form-control" id="event_date" name="event_date" required>
+                    </div>
+                    
+                    <div class="mb-4">
+                        <label for="description" class="form-label">活動描述</label>
+                        <textarea class="form-control" id="description" name="description" rows="4" placeholder="詳細說明活動內容..."></textarea>
+                    </div>
+                    
+                    <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                        <a href="{{ url_for('event_routes.index') }}" class="btn btn-secondary me-md-2">取消</a>
+                        <button type="submit" class="btn btn-primary">建立活動</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

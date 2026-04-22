@@ -1,0 +1,105 @@
+{% extends "base.html" %}
+
+{% block title %}{{ event.name }} - 活動詳情{% endblock %}
+
+{% block content %}
+<div class="row">
+    <!-- 左側：活動資訊與報名表單 -->
+    <div class="col-md-7">
+        <div class="card shadow-sm mb-4">
+            <div class="card-body">
+                <h3 class="card-title">{{ event.name }}</h3>
+                <h6 class="card-subtitle mb-3 text-muted">📅 活動日期：{{ event.event_date }}</h6>
+                <hr>
+                <h5>活動描述</h5>
+                <p class="card-text" style="white-space: pre-wrap;">{{ event.description if event.description else '無詳細描述' }}</p>
+            </div>
+        </div>
+
+        <div class="card shadow-sm">
+            <div class="card-header bg-success text-white">
+                <h4 class="mb-0">我要報名</h4>
+            </div>
+            <div class="card-body">
+                <form action="{{ url_for('event_routes.event_detail', id=event.id) }}" method="POST">
+                    <div class="mb-3">
+                        <label for="name" class="form-label">姓名 <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" id="name" name="name" required placeholder="請輸入真實姓名">
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="gender" class="form-label">性別 <span class="text-danger">*</span></label>
+                        <select class="form-select" id="gender" name="gender" required>
+                            <option value="" disabled selected>請選擇性別</option>
+                            <option value="男">男</option>
+                            <option value="女">女</option>
+                        </select>
+                    </div>
+                    
+                    <div class="mb-4">
+                        <label for="contact_info" class="form-label">聯絡資訊</label>
+                        <input type="text" class="form-control" id="contact_info" name="contact_info" placeholder="Email 或電話（選填）">
+                    </div>
+                    
+                    <div class="d-grid">
+                        <button type="submit" class="btn btn-success btn-lg">確認報名</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- 右側：報名統計與名單 -->
+    <div class="col-md-5">
+        <div class="card shadow-sm mb-4 border-info">
+            <div class="card-header bg-info text-dark">
+                <h5 class="mb-0">📊 報名統計</h5>
+            </div>
+            <div class="card-body">
+                <div class="row text-center">
+                    <div class="col-4">
+                        <h3 class="text-primary">{{ stats.total }}</h3>
+                        <p class="mb-0 text-muted">總人數</p>
+                    </div>
+                    <div class="col-4">
+                        <h3 class="text-success">{{ stats.male }}</h3>
+                        <p class="mb-0 text-muted">男生</p>
+                    </div>
+                    <div class="col-4">
+                        <h3 class="text-danger">{{ stats.female }}</h3>
+                        <p class="mb-0 text-muted">女生</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card shadow-sm">
+            <div class="card-header bg-secondary text-white d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">📝 已報名名單</h5>
+                <span class="badge bg-light text-dark rounded-pill">{{ stats.total }}</span>
+            </div>
+            <ul class="list-group list-group-flush" style="max-height: 400px; overflow-y: auto;">
+                {% if registrations %}
+                    {% for reg in registrations %}
+                    <li class="list-group-item d-flex justify-content-between align-items-center">
+                        <div>
+                            <strong>{{ reg.name }}</strong>
+                            {% if reg.gender == '男' %}
+                                <span class="badge bg-primary ms-1">男</span>
+                            {% else %}
+                                <span class="badge bg-danger ms-1">女</span>
+                            {% endif %}
+                        </div>
+                        <small class="text-muted">{{ reg.created_at[:16] }}</small>
+                    </li>
+                    {% endfor %}
+                {% else %}
+                    <li class="list-group-item text-center text-muted py-4">
+                        目前還沒有人報名，搶下頭香吧！
+                    </li>
+                {% endif %}
+            </ul>
+        </div>
+    </div>
+</div>
+{% endblock %}
