@@ -1,75 +1,161 @@
-# 流程圖文件 (Flowchart)
+# 流程圖文件（Flowchart）— 活動報名系統
 
-本文件根據產品需求文件（PRD）與系統架構文件（ARCHITECTURE），視覺化了「活動報名系統」的使用者操作流程，以及系統內部的資料與狀態流動。
+本文件根據 `docs/PRD.md` 與 `docs/ARCHITECTURE.md`，以 Mermaid 語法視覺化「活動報名系統」的使用者操作流程與系統內部資料流動。
 
 ---
 
 ## 1. 使用者流程圖（User Flow）
 
-此流程圖分為「主辦方（建立與管理活動）」與「報名者（填寫表單）」兩條主要路徑：
+此流程圖涵蓋兩條主要路徑：**主辦者（建立活動、查看統計）** 與 **報名者（報名參加活動）**。
 
 ```mermaid
 flowchart LR
-    Start([使用者造訪主機網址]) --> Role{使用者目的？}
-    
-    %% 主辦方路線
-    Role -->|我是主辦方| CreatePage[首頁 / 建立活動頁]
-    CreatePage --> FillEvent[填寫活動資訊並送出]
-    FillEvent --> GenLink[系統產生『各別活動專屬連結』]
-    GenLink --> Dashboard[進入主辦方後台總覽 Dashboard]
-    Dashboard -->|查看統計| Stats[檢視已報名總數與男女人數比例]
-    Dashboard -->|檢視清單| List[查看完整清單列表]
-    Dashboard -->|匯出| Export[下載 CSV/Excel 名單]
-    
-    %% 報名者路線
-    Role -->|我是報名者| OpenLink([開啟朋友分享的專屬連結])
-    OpenLink --> ViewForm[顯示活動簡介與報名表單]
-    ViewForm --> FillForm[填寫個人基本資料與性別]
-    FillForm --> SubmitForm[送出報名表單]
-    SubmitForm --> Success([抵達報名成功感謝頁面])
+    Start([使用者開啟網站]) --> Home["首頁<br>活動列表"]
+
+    Home --> Action{要做什麼？}
+
+    %% ===== 主辦者路線 =====
+    Action -->|建立新活動| CreatePage["建立活動頁面<br>GET /events/create"]
+    CreatePage --> FillEvent["填寫活動名稱<br>選擇活動日期<br>填寫活動描述"]
+    FillEvent --> SubmitEvent["送出建立表單<br>POST /events/create"]
+    SubmitEvent --> Validate{資料驗證}
+    Validate -->|失敗| CreatePage
+    Validate -->|成功| EventCreated["活動建立成功<br>重導至活動詳情頁"]
+
+    %% ===== 報名者路線 =====
+    Action -->|查看活動| EventDetail["活動詳情頁<br>GET /events/id"]
+    EventCreated --> EventDetail
+
+    EventDetail --> ViewInfo["查看活動資訊<br>名稱 / 日期 / 描述"]
+    EventDetail --> ViewStats["查看報名統計<br>總人數 / 男女人數"]
+    EventDetail --> ViewList["查看報名名單<br>姓名 / 性別 / 時間"]
+    EventDetail --> Register["填寫報名表單<br>姓名 / 性別"]
+
+    Register --> SubmitReg["送出報名<br>POST /events/id"]
+    SubmitReg --> RegValidate{資料驗證}
+    RegValidate -->|失敗| EventDetail
+    RegValidate -->|成功| Success(["報名成功頁面<br>GET /events/id/success"])
 ```
+
+### 流程說明
+
+1. **首頁**：所有使用者進入網站後，看到活動列表
+2. **建立活動**：主辦者點擊「建立活動」按鈕，填寫活動資訊並送出
+3. **活動詳情**：使用者點擊活動或透過分享連結進入，可以查看活動資訊、報名統計，也可以直接報名
+4. **報名流程**：填寫姓名與性別後送出，成功後跳轉至感謝頁面
 
 ---
 
 ## 2. 系統序列圖（Sequence Diagram）
 
-以下序列圖展示了核心情境：**「報名者填寫表單並送出」**時，各個系統元件之間是如何互動與響應的。
+### 2.1 建立活動流程
 
 ```mermaid
 sequenceDiagram
-    actor Participant as 報名者
+    actor User as 主辦者
     participant Browser as 瀏覽器
-    participant Flask as Flask (路線控制器)
-    participant Model as Model (資料邏輯層)
-    participant DB as SQLite (資料庫)
+    participant Route as Flask Route
+    participant Model as Event Model
+    participant DB as SQLite
 
-    Participant->>Browser: 填妥姓名、性別等資料，點擊「確認送出」
-    Browser->>Flask: HTTP POST /event/{id}/register (傳送表單內容)
-    
-    Note over Flask, DB: 後端開始處理
-    Flask->>Model: 校驗資料完整性並呼叫「新增報名」函式
-    Model->>DB: 執行 SQL: INSERT INTO registrations...
-    DB-->>Model: 回傳成功狀態與自動產生的流水號
-    
-    Note over Model, DB: (若有設定人數上限，亦會檢查目前報名總數)
-    Model-->>Flask: 報名手續處理完畢
-    
-    Flask-->>Browser: HTTP 302 Redirect 重新導向至成功畫面
-    Browser-->>Participant: 呈現「您已成功報名！」提示
+    User->>Browser: 點擊「建立活動」
+    Browser->>Route: GET /events/create
+    Route-->>Browser: 回傳建立活動表單頁面
+
+    User->>Browser: 填寫活動名稱、日期、描述，按下送出
+    Browser->>Route: POST /events/create (表單資料)
+
+    Route->>Route: 驗證表單資料（名稱、日期不可空白）
+
+    alt 驗證失敗
+        Route-->>Browser: 回傳錯誤訊息，重新顯示表單
+    else 驗證成功
+        Route->>Model: 呼叫建立活動函式
+        Model->>DB: INSERT INTO events (name, date, description)
+        DB-->>Model: 回傳新活動 ID
+        Model-->>Route: 回傳建立結果
+        Route-->>Browser: HTTP 302 重導至 /events/{id}
+        Browser-->>User: 顯示活動詳情頁面
+    end
+```
+
+### 2.2 報名活動流程
+
+```mermaid
+sequenceDiagram
+    actor User as 報名者
+    participant Browser as 瀏覽器
+    participant Route as Flask Route
+    participant Model as Registration Model
+    participant DB as SQLite
+
+    User->>Browser: 透過連結開啟活動頁面
+    Browser->>Route: GET /events/{id}
+    Route->>Model: 查詢活動資訊與報名統計
+    Model->>DB: SELECT 活動資訊 + COUNT 統計
+    DB-->>Model: 回傳活動資料與統計數字
+    Model-->>Route: 回傳結果
+    Route-->>Browser: 渲染活動詳情頁（含報名表單）
+
+    User->>Browser: 填寫姓名、選擇性別，按下「報名」
+    Browser->>Route: POST /events/{id} (姓名、性別)
+
+    Route->>Route: 驗證表單資料（姓名、性別不可空白）
+
+    alt 驗證失敗
+        Route-->>Browser: 回傳錯誤訊息，重新顯示表單
+    else 驗證成功
+        Route->>Model: 呼叫新增報名函式
+        Model->>DB: INSERT INTO registrations (event_id, name, gender)
+        DB-->>Model: 寫入成功
+        Model-->>Route: 回傳結果
+        Route-->>Browser: HTTP 302 重導至 /events/{id}/success
+        Browser-->>User: 顯示「報名成功」感謝頁面
+    end
+```
+
+### 2.3 查看報名統計流程
+
+```mermaid
+sequenceDiagram
+    actor User as 主辦者/使用者
+    participant Browser as 瀏覽器
+    participant Route as Flask Route
+    participant Model as Model
+    participant DB as SQLite
+
+    User->>Browser: 開啟活動詳情頁
+    Browser->>Route: GET /events/{id}
+    Route->>Model: 查詢活動資訊
+    Model->>DB: SELECT * FROM events WHERE id = ?
+    DB-->>Model: 回傳活動資料
+
+    Route->>Model: 查詢報名統計
+    Model->>DB: SELECT gender, COUNT(*) FROM registrations WHERE event_id = ? GROUP BY gender
+    DB-->>Model: 回傳男女人數統計
+
+    Route->>Model: 查詢報名名單
+    Model->>DB: SELECT name, gender, created_at FROM registrations WHERE event_id = ?
+    DB-->>Model: 回傳報名名單
+
+    Model-->>Route: 彙整所有資料
+    Route-->>Browser: 渲染活動詳情頁（含統計與名單）
+    Browser-->>User: 顯示總人數、男性人數、女性人數、報名名單
 ```
 
 ---
 
 ## 3. 功能清單對照表
 
-依照 PRD 所需功能轉化為系統實作，下面列出預計會用到的對應網址（URL）與存取方法（HTTP Method）：
+以下列出每個功能對應的 URL 路徑與 HTTP 方法：
 
-| 系統功能 | 說明 | 建議 URL 路徑 | HTTP 方法 |
-| :--- | :--- | :--- | :--- |
-| **首頁 / 建立活動** | 系統主要入口，主辦方建立活動用 | `/` 或 `/create` | `GET` (看表單)<br>`POST` (送出表單) |
-| **填寫報名資料** | 報名者透過連結看到特定活動的表單 | `/event/<event_id>` | `GET` |
-| **送出報名處理** | 接收報名者的資料並寫入資料庫 | `/event/<event_id>/register` | `POST` |
-| **主辦方後台 ( dashboard )** | 檢視特定活動的人數統計、男女比例圖、名單列表 | `/event/<event_id>/dashboard` | `GET` |
-| **匯出報名名單** | 提供主辦方下載目前的名單 CSV 檔案 | `/event/<event_id>/export` | `GET` |
+| 功能             | 說明                                 | URL 路徑               | HTTP 方法   |
+| ---------------- | ------------------------------------ | ---------------------- | ----------- |
+| 首頁（活動列表） | 顯示所有活動清單，按日期排序         | `/`                    | `GET`       |
+| 建立活動頁面     | 顯示建立活動的表單                   | `/events/create`       | `GET`       |
+| 建立活動處理     | 接收表單資料，建立新活動             | `/events/create`       | `POST`      |
+| 活動詳情頁       | 顯示活動資訊、報名統計、報名表單     | `/events/<id>`         | `GET`       |
+| 報名處理         | 接收報名資料，新增報名記錄           | `/events/<id>`         | `POST`      |
+| 報名成功頁       | 顯示報名成功的確認訊息               | `/events/<id>/success` | `GET`       |
 
-> 註：`<event_id>` 將於建立活動時產生的唯一亂數或編號代碼，確保每個活動有獨立的空間。
+> **註**：`<id>` 為活動的唯一識別碼（資料庫自動產生的整數 ID）。使用者透過分享的連結（如 `http://localhost:5000/events/3`）即可直接進入特定活動的報名頁面。
